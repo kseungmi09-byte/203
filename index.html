@@ -1821,15 +1821,15 @@ function requireLogin(actionText = '이 기능') {
                         nickname: found.nickname || found.name || studentId,
                         avatarUrl: found.avatarUrl || '',
                     };
-                } else {
-                    currentUser = {
-                        studentId,
-                        name: `${studentId} 학급원`,
-                        nickname: `${studentId} 학급원`,
-                        avatarUrl: '',
-                    };
-                    upsertLocalUser({ ...currentUser, password });
-                }
+     } else {
+            currentUser = {
+                studentId,
+                name: String(studentId),
+                nickname: String(studentId),
+                avatarUrl: '',
+            };
+            upsertLocalUser({ ...currentUser, password });
+        }
                 saveSessionLocal();
                 renderAuthUI();
                 prefillAuthorIfLoggedIn();
