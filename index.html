@@ -1313,13 +1313,14 @@
         // =====================================================================
         // 5. Supabase 연동 (users, newspapers, calendar_events, newspaper-pdfs)
         // =====================================================================
-        function supabaseHeaders(extra = {}) {
-            return {
-                apikey: SUPABASE_PUBLISHABLE_KEY,
-                'Content-Type': 'application/json',
-                ...extra,
-            };
-        }
+       function supabaseHeaders(extra = {}) {
+    return {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+        'Content-Type': 'application/json',
+        ...extra,
+    };
+}
 
         function normalizeArticleRow(row) {
             return {
@@ -1342,19 +1343,19 @@
             };
         }
 
-        function normalizeCalendarRow(row) {
-            return {
-                id: String(row.id),
-                date: row.date,
-                title: row.title || '일정',
-                memo: row.memo || '',
-                visibility: row.visibility === 'private' ? 'private' : 'public',
-                authorId: row.author_id || '',
-                authorName: row.author_name || '',
-                authorDisplay: row.author_nickname || row.author_name || row.author_id || '203반 학생',
-                createdAt: row.created_at || new Date().toISOString(),
-            };
-        }
+ function normalizeCalendarRow(row) {
+    return {
+        id: String(row.id),
+        date: row.date,
+        title: row.title || '일정',
+        memo: row.description ?? row.memo ?? '',
+        visibility: row.visibility === 'private' ? 'private' : 'public',
+        authorId: row.author_id || '',
+        authorName: row.author_name || '',
+        authorDisplay: row.author_nickname || row.author_name || row.author_id || '203반 학생',
+        createdAt: row.created_at || new Date().toISOString(),
+    };
+}
 
         async function syncFromSupabase() {
             let okAny = false;
@@ -3074,24 +3075,20 @@ const payload = {
             memoInput.value = '';
 
             // '공공' 일정은 Supabase calendar_events 테이블에도 저장
-            if (visibility === 'public') {
-                try {
-                    await fetch(`${SUPABASE_REST_URL}calendar_events`, {
-                        method: 'POST',
-                        headers: supabaseHeaders({ Prefer: 'return=minimal' }),
-                        body: JSON.stringify({
-                            id: newEv.id,
-                            date: newEv.date,
-                            title: newEv.title,
-                            memo: newEv.memo || '',
-                            visibility: 'public',
-                            author_id: authorId || null,
-                            author_name: authorName || null,
-                            author_nickname: authorDisplay,
-                        }),
-                    });
-                } catch (_) {}
-            }
+if (visibility === 'public') {
+    try {
+        await fetch(`${SUPABASE_REST_URL}calendar_events`, {
+            method: 'POST',
+            headers: supabaseHeaders({ Prefer: 'return=minimal' }),
+            body: JSON.stringify({
+                date: newEv.date,
+                title: newEv.title,
+                visibility: 'public',
+                description: newEv.memo || '',
+            }),
+        });
+    } catch (_) {}
+}
 
             showToast(visibility === 'public' ? '공공 일정이 등록되었습니다!' : '나만 보기 일정이 추가되었습니다!');
         }
