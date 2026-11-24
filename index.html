@@ -1616,6 +1616,17 @@ const payload = {
         // =====================================================================
         // 7. 회원 인증 (로그인 / 회원가입 / 로그아웃)
         // =====================================================================
+function isLoggedIn() {
+    return Boolean(currentUser && currentUser.studentId);
+}
+
+function requireLogin(actionText = '이 기능') {
+    if (isLoggedIn()) return true;
+    showToast(`${actionText}은 로그인 후 이용할 수 있습니다.`, 'error');
+    openAuthModal('login');
+    return false;
+}
+        
         function getUserDisplayLabel(user) {
             if (!user) return '';
             const nick = (user.nickname || '').trim();
@@ -2441,13 +2452,21 @@ const payload = {
                         imageUrl: imageUrl || existing.imageUrl,
                     };
                     const remoteSaved = await upsertArticleToSupabase(updated);
-                    articles[idx] = remoteSaved || updated;
-                    saveArticlesLocal();
-                    renderRack();
-                    if (String(activeArticleId) === String(articles[idx].id)) {
-                        openArticleDetail(articles[idx].id);
-                    }
-                    showToast('신문 내용이 수정되었습니다!');
+                   const targetEditId = String(editingArticleId);
+            const finalUpdated = remoteSaved || updated;
+
+            articles = articles.filter(
+                (a) => String(a.id) !== targetEditId && String(a.id) !== String(finalUpdated.id)
+            );
+            articles.splice(Math.max(0, idx), 0, finalUpdated);
+
+            saveArticlesLocal();
+            renderRack();
+            if (String(activeArticleId) === targetEditId || String(activeArticleId) === String(finalUpdated.id)) {
+                activeArticleId = finalUpdated.id;
+                openArticleDetail(finalUpdated.id);
+            }
+            showToast('신문 내용이 수정되었습니다!');
                 }
                 editingArticleId = null;
             } else {
