@@ -2881,6 +2881,20 @@ function getCurrentCommentAuthor() {
     return `${sid} ${rawName}`;
 }
 
+function getCurrentCommentAuthor() {
+    if (!currentUser || !currentUser.studentId) return '';
+    const sid = String(currentUser.studentId).trim();
+    const rawName = String(currentUser.name || '').trim();
+
+    if (!rawName || rawName === sid || rawName === `${sid} 학급원`) {
+        return `${sid} 학급원`;
+    }
+    if (rawName.startsWith(sid)) {
+        return rawName;
+    }
+    return `${sid} ${rawName}`;
+}
+        
 async function handleAddComment(e) {
     if (e && typeof e.preventDefault === 'function') {
         e.preventDefault();
