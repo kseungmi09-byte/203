@@ -2248,39 +2248,32 @@ function openWriteModal(editArticle = null) {
     // 상세 창이 열려 있다면 먼저 닫아서 뒤에 깔리지 않게 함
     closeModal('detail-modal');
 
-    // 기존 openWriteModal 내용 이어서 실행...
-}
-            
-            if (editArticle) {
-                editingArticleId = editArticle.id;
-                document.getElementById('write-modal-title').textContent = '학급신문 수정하기';
-                document.getElementById('submit-article-btn').textContent = '수정 내용 저장';
-                document.getElementById('article-issue').value = editArticle.issue || '';
-                document.getElementById('article-category').value = editArticle.category || '학교생활';
-                document.getElementById('article-author').value = editArticle.author || '';
-                document.getElementById('article-title').value = editArticle.title || '';
-                document.getElementById('article-content').value = editArticle.content || '';
-                clearAttachedFile();
-            } else {
-                editingArticleId = null;
-                document.getElementById('write-modal-title').textContent = '새 학급신문 발행하기';
-                document.getElementById('submit-article-btn').textContent = '가판대에 꽂기';
-                document.getElementById('write-form').reset();
-                clearAttachedFile();
-                updateNextIssueSuggestion();
-                prefillAuthorIfLoggedIn();
-                const catSelect = document.getElementById('article-category');
-                if (catSelect && currentCategory !== '전체') {
-                    catSelect.value = currentCategory;
-                }
-            }
-            openModal('write-modal');
-        
-
-        function triggerFilePicker() {
-            const input = document.getElementById('newspaper-file-input');
-            if (input) input.click();
+    if (editArticle) {
+        editingArticleId = editArticle.id;
+        document.getElementById('write-modal-title').textContent = '학급신문 수정하기';
+        document.getElementById('submit-article-btn').textContent = '수정 내용 저장';
+        document.getElementById('article-issue').value = editArticle.issue || '';
+        document.getElementById('article-category').value = editArticle.category || '학교생활';
+        document.getElementById('article-author').value = editArticle.author || '';
+        document.getElementById('article-title').value = editArticle.title || '';
+        document.getElementById('article-content').value = editArticle.content || '';
+        clearAttachedFile();
+    } else {
+        editingArticleId = null;
+        document.getElementById('write-modal-title').textContent = '새 학급신문 발행하기';
+        document.getElementById('submit-article-btn').textContent = '가판대에 꽂기';
+        document.getElementById('write-form').reset();
+        clearAttachedFile();
+        updateNextIssueSuggestion();
+        prefillAuthorIfLoggedIn();
+        const catSelect = document.getElementById('article-category');
+        if (catSelect && currentCategory !== '전체') {
+            catSelect.value = currentCategory;
         }
+    }
+
+    openModal('write-modal');
+}
 
         function handleFileSelected(e) {
             const file = e.target.files && e.target.files[0];
