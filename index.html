@@ -1044,17 +1044,23 @@
                         <span id="detail-comments-count" class="px-2 py-0.5 rounded text-xs font-sans bg-stone-800 text-newsprint-light dark:bg-stone-700">0</span>
                     </h3>
 
- <form id="comment-form" class="flex gap-2">
-    <input
-        id="comment-text"
-        type="text"
-        placeholder="댓글을 입력하세요..."
-        class="flex-1 ..."
-        required
-    />
-    <button type="submit" class="...">등록</button>
+<form id="comment-form" onsubmit="handleAddComment(event)" class="mb-4 bg-newsprint-fold/80 dark:bg-stone-900/80 p-3 rounded-xl border border-stone-400/60 dark:border-stone-700">
+    <div class="flex flex-col sm:flex-row gap-2">
+        <input
+            type="text"
+            id="comment-text"
+            required
+            placeholder="댓글을 입력하세요..."
+            class="flex-1 px-3 py-1.5 rounded-lg text-sm bg-white dark:bg-stone-800 text-stone-900 dark:text-white border border-stone-400/70 dark:border-stone-600 focus:outline-none focus:ring-2 focus:ring-amber-500"
+        />
+        <button
+            type="submit"
+            class="px-4 py-1.5 rounded-lg bg-stone-900 dark:bg-amber-400 text-newsprint-light dark:text-stone-950 text-sm font-bold hover:opacity-90 transition whitespace-nowrap cursor-pointer"
+        >
+            등록
+        </button>
+    </div>
 </form>
-
                     <div id="detail-comments-list" class="space-y-2"></div>
                 </section>
             </div>
