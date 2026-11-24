@@ -203,6 +203,15 @@
                 <span id="today-date" class="font-medium text-stone-200"></span>
                 <span class="hidden md:inline text-stone-600">|</span>
                 <span id="db-status-text" class="hidden md:inline text-stone-400">연결 확인 중...</span>
+                <span class="hidden lg:inline text-stone-600">|</span>
+                <a
+                    href="https://kseungmi09-byte.github.io/203board/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="hidden lg:inline-flex items-center gap-1 text-amber-300 hover:text-amber-200 underline font-medium"
+                >
+                    <span>GitHub 사이트 ↗</span>
+                </a>
             </div>
 
             <!-- 우측: 로그인/회원가입 또는 로그아웃 버튼 + 바로 옆 3선 메뉴('☰') 버튼 -->
@@ -1174,14 +1183,14 @@
         }
 
         function updateDbStatusUI(online, message) {
-            isSupabaseOnline = online;
+            isSupabaseOnline = Boolean(online);
             const dot = document.getElementById('db-status-dot');
             const text = document.getElementById('db-status-text');
             if (dot) {
-                dot.className = `inline-block w-2 h-2 rounded-full ${online ? 'bg-emerald-400' : 'bg-amber-400'}`;
+                dot.className = `inline-block w-2 h-2 rounded-full ${isSupabaseOnline ? 'bg-emerald-400' : 'bg-amber-400'}`;
             }
             if (text) {
-                text.textContent = message || (online ? 'Supabase 실시간 연동됨' : '로컬 저장 모드');
+                text.textContent = message || (isSupabaseOnline ? 'Supabase 실시간 연동됨' : '로컬 저장 모드');
             }
         }
 
@@ -1307,7 +1316,6 @@
         function supabaseHeaders(extra = {}) {
             return {
                 apikey: SUPABASE_PUBLISHABLE_KEY,
-                Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
                 'Content-Type': 'application/json',
                 ...extra,
             };
@@ -1496,7 +1504,6 @@
                     method: 'POST',
                     headers: {
                         apikey: SUPABASE_PUBLISHABLE_KEY,
-                        Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
                         'Content-Type': file.type || (kind === 'pdf' ? 'application/pdf' : 'image/png'),
                         'x-upsert': 'true',
                     },
