@@ -1044,27 +1044,16 @@
                         <span id="detail-comments-count" class="px-2 py-0.5 rounded text-xs font-sans bg-stone-800 text-newsprint-light dark:bg-stone-700">0</span>
                     </h3>
 
-                    <form id="comment-form" onsubmit="handleAddComment(event)" class="mb-4 bg-newsprint-fold/80 dark:bg-stone-900/80 p-3 rounded-xl border border-stone-400/60 dark:border-stone-700">
-                        <div class="flex flex-col sm:flex-row gap-2">
-                            <input
-                                type="text"
-                                id="comment-author"
-                                required
-                                placeholder="학번 이름 (예: 20305 김철수)"
-                                class="sm:w-44 px-3 py-1.5 rounded-lg text-sm bg-white dark:bg-stone-800 text-stone-900 dark:text-white border border-stone-400/70 dark:border-stone-600 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                            />
-                            <input
-                                type="text"
-                                id="comment-text"
-                                required
-                                placeholder="댓글을 입력하세요..."
-                                class="flex-1 px-3 py-1.5 rounded-lg text-sm bg-white dark:bg-stone-800 text-stone-900 dark:text-white border border-stone-400/70 dark:border-stone-600 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                            />
-                            <button type="submit" class="px-4 py-1.5 rounded-lg bg-stone-900 dark:bg-amber-400 text-newsprint-light dark:text-stone-950 text-sm font-bold hover:opacity-90 transition whitespace-nowrap cursor-pointer">
-                                등록
-                            </button>
-                        </div>
-                    </form>
+ <form id="comment-form" class="flex gap-2">
+    <input
+        id="comment-text"
+        type="text"
+        placeholder="댓글을 입력하세요..."
+        class="flex-1 ..."
+        required
+    />
+    <button type="submit" class="...">등록</button>
+</form>
 
                     <div id="detail-comments-list" class="space-y-2"></div>
                 </section>
@@ -2872,34 +2861,55 @@ function handleEditCurrentArticle() {
             `).join('');
         }
 
-        async function handleAddComment(e) {
-            e.preventDefault();
-            if (!activeArticleId) return;
+function getCurrentCommentAuthor() {
+    if (!currentUser || !currentUser.studentId) return '';
+    const sid = String(currentUser.studentId).trim();
+    const rawName = String(currentUser.name || '').trim();
 
-            const authorInput = document.getElementById('comment-author');
-            const textInput = document.getElementById('comment-text');
-            const author = authorInput.value.trim();
-            const text = textInput.value.trim();
-            if (!author || !text) return;
+    if (!rawName || rawName === sid || rawName === `${sid} 학급원`) {
+        return `${sid} 학급원`;
+    }
+    if (rawName.startsWith(sid)) {
+        return rawName;
+    }
+    return `${sid} ${rawName}`;
+}
 
-            const article = articles.find((a) => String(a.id) === String(activeArticleId));
-            if (!article) return;
+async function handleAddComment(e) {
+    // ...
+        
+async function handleAddComment(e) {
+    e.preventDefault();
+    if (!requireLogin('댓글 작성')) return;
 
-            if (!Array.isArray(article.comments)) article.comments = [];
-            article.comments.push({
-                id: `cm-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-                author,
-                text,
-                date: formatDateTime(new Date()),
-            });
+    const textInput = document.getElementById('comment-text');
+    const text = textInput ? textInput.value.trim() : '';
+    if (!text) return;
 
-            saveArticlesLocal();
-            renderComments(article);
-            renderRack();
-            textInput.value = '';
-            showToast('댓글이 등록되었습니다.');
-            await upsertArticleToSupabase(article);
-        }
+    const article = articles.find((a) => String(a.id) === String(activeArticleId));
+    if (!article) return;
+
+    const authorLabel = getCurrentCommentAuthor();
+    const authorId = String(currentUser.studentId).trim();
+
+    const newComment = {
+        id: `cmt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        author: authorLabel,
+        authorId,
+        text,
+        createdAt: new Date().toISOString(),
+    };
+
+    article.comments = Array.isArray(article.comments) ? [...article.comments, newComment] : [newComment];
+
+    saveArticlesLocal();
+    renderComments(article);
+    renderRack();
+    await upsertArticleToSupabase(article);
+
+    if (textInput) textInput.value = '';
+    showToast('댓글이 등록되었습니다!');
+}
 
         async function deleteComment(commentId) {
             if (!activeArticleId) return;
