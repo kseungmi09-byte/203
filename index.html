@@ -1317,65 +1317,164 @@
     };
 }
 
- function normalizeArticleRow(row) {
+        function normalizeArticleRow(row) {
+            return {
+                id: String(row.id),
+                issue: row.issue || '제1호',
+                category: row.category || '학교생활',
+                title: row.title || '제목 없음',
+                author: row.author || '203반 기자',
+                authorId: row.author_id || extractStudentIdFromText(row.author) || '',
+                content: row.content || '',
+                imageUrl: row.image_url || row.imageUrl || '',
+                pdfUrl: row.pdf_url || row.pdfUrl || '',
+                pdfName: row.pdf_name || row.pdfName || '',
+                illustration: row.illustration || 'newspaper',
+                views: Number(row.views) || 0,
+                likes: Number(row.likes) || 0,
+                comments: Array.isArray(row.comments) ? row.comments : [],
+                date: row.date || formatDateOnly(row.created_at),
+                createdAt: row.created_at || new Date().toISOString(),
+            };
+        }
+
+ function normalizeCalendarRow(row) {
     return {
         id: String(row.id),
-        issue: row.issue || '제1호',
-        category: row.category || '학교생활',
-        title: row.title || '제목 없음',
-        author: row.author || '203반 기자',
-        authorId: row.author_id || extractStudentIdFromText(row.author) || '',
-        content: row.content || '',
-        imageUrl: row.image_url || row.imageUrl || '',
-        pdfUrl: row.pdf_url || row.pdfUrl || '',
-        pdfName: row.pdf_name || row.pdfName || '',
-        illustration: row.illustration || 'newspaper',
-        views: Number(row.views) || 0,
-        likes: Number(row.likes) || 0,
-        comments: Array.isArray(row.comments) ? row.comments : [],
-        date: row.date || formatDateOnly(row.created_at),
+        date: row.date,
+        title: row.title || '일정',
+        memo: row.description ?? row.memo ?? '',
+        visibility: row.visibility === 'private' ? 'private' : 'public',
+        authorId: row.author_id || '',
+        authorName: row.author_name || '',
+        authorDisplay: row.author_nickname || row.author_name || row.author_id || '203반 학생',
         createdAt: row.created_at || new Date().toISOString(),
     };
 }
 
-async function upsertArticleToSupabase(article) {
-    try {
-        const payload = {
-            issue: article.issue,
-            category: article.category,
-            title: article.title,
-            author: article.author,
-            author_id: article.authorId || (currentUser ? String(currentUser.studentId) : null),
-            content: article.content,
-            pdf_url: article.pdfUrl && !article.pdfUrl.startsWith('blob:') ? article.pdfUrl : null,
-            illustration: article.illustration || 'newspaper',
-            views: Number(article.views) || 0,
-            likes: Number(article.likes) || 0,
-            comments: Array.isArray(article.comments) ? article.comments : [],
-        };
+        async function syncFromSupabase() {
+            let okAny = false;
 
-        const isNumericId = /^\d+$/.test(String(article.id));
-        const url = isNumericId
-            ? `${SUPABASE_REST_URL}newspapers?id=eq.${encodeURIComponent(article.id)}`
-            : `${SUPABASE_REST_URL}newspapers`;
-        const method = isNumericId ? 'PATCH' : 'POST';
+            try {
+                const res = await fetch(`${SUPABASE_REST_URL}newspapers?select=*&order=id.desc`, {
+                    method: 'GET',
+                    headers: supabaseHeaders(),
+                });
+                if (res.ok) {
+                    okAny = true;
+                    const rows = await res.json();
+                    if (Array.isArray(rows)) {
+                        const remoteArticles = rows.map(normalizeArticleRow);
+                        const remoteIds = new Set(remoteArticles.map((a) => a.id));
+                        const localOnly = articles.filter((a) => !remoteIds.has(a.id));
+                        articles = [...localOnly, ...remoteArticles];
+                        saveArticlesLocal();
+                        updateNextIssueSuggestion();
+                        renderRack();
+                    }
+                }
+            } catch (_) {}
 
-        const res = await fetch(url, {
-            method,
-            headers: supabaseHeaders({ Prefer: 'return=representation' }),
-            body: JSON.stringify(payload),
-        });
+            try {
+                const calRes = await fetch(`${SUPABASE_REST_URL}calendar_events?select=*&order=created_at.asc`, {
+                    method: 'GET',
+                    headers: supabaseHeaders(),
+                });
+                if (calRes.ok) {
+                    okAny = true;
+                    const evRows = await calRes.json();
+                    if (Array.isArray(evRows)) {
+                        const remotePublicEvents = evRows
+                            .map(normalizeCalendarRow)
+                            .filter((ev) => ev.visibility === 'public');
+                        const localPrivateOrUnsynced = calendarEvents.filter(
+                            (ev) => ev.visibility === 'private' || !remotePublicEvents.some((r) => r.id === ev.id)
+                        );
+                        // 병합: 원격 공공 일정 + 로컬 나만 보기 일정
+                        const mergedMap = new Map();
+                        [...remotePublicEvents, ...localPrivateOrUnsynced].forEach((ev) => {
+                            mergedMap.set(ev.id, ev);
+                        });
+                        calendarEvents = [...mergedMap.values()];
+                        saveCalendarLocal();
+                        renderCalendarView();
+                    }
+                }
+            } catch (_) {}
 
-        if (!res.ok) return null;
-        const data = await res.json();
-        if (Array.isArray(data) && data[0]) {
-            return normalizeArticleRow(data[0]);
+            try {
+                const uRes = await fetch(`${SUPABASE_REST_URL}users?select=*`, {
+                    method: 'GET',
+                    headers: supabaseHeaders(),
+                });
+                if (uRes.ok) {
+                    const uRows = await uRes.json();
+                    if (Array.isArray(uRows) && uRows.length > 0) {
+                        uRows.forEach((r) => {
+                            const idx = localUsers.findIndex((u) => String(u.studentId) === String(r.student_id));
+                            const mapped = {
+                                studentId: String(r.student_id),
+                                name: r.name || String(r.student_id),
+                                nickname: r.nickname || r.name || String(r.student_id),
+                                avatarUrl: r.avatar_url || '',
+                                password: r.password || '',
+                            };
+                            if (idx >= 0) {
+                                localUsers[idx] = { ...localUsers[idx], ...mapped };
+                            } else {
+                                localUsers.push(mapped);
+                            }
+                        });
+                        saveUsersLocal();
+                    }
+                }
+            } catch (_) {}
+
+            if (okAny) {
+                updateDbStatusUI(true, 'Supabase 실시간 연동됨');
+            } else {
+                updateDbStatusUI(false, '로컬 가판대 모드 (연결 대기 중)');
+            }
         }
-        return null;
-    } catch (_) {
-        return null;
-    }
-}
+
+        async function upsertArticleToSupabase(article) {
+            try {
+const payload = {
+                    issue: article.issue,
+                    category: article.category,
+                    title: article.title,
+                    author: article.author,
+                    content: article.content,
+                    pdf_url: article.pdfUrl && !article.pdfUrl.startsWith('blob:') ? article.pdfUrl : null,
+                    illustration: article.illustration || 'newspaper',
+                    views: Number(article.views) || 0,
+                    likes: Number(article.likes) || 0,
+                    comments: Array.isArray(article.comments) ? article.comments : [],
+                };
+
+                const isNumericId = /^\d+$/.test(String(article.id));
+                const url = isNumericId
+                    ? `${SUPABASE_REST_URL}newspapers?id=eq.${encodeURIComponent(article.id)}`
+                    : `${SUPABASE_REST_URL}newspapers`;
+                const method = isNumericId ? 'PATCH' : 'POST';
+
+                const res = await fetch(url, {
+                    method,
+                    headers: supabaseHeaders({ Prefer: 'return=representation' }),
+                    body: JSON.stringify(payload),
+                });
+
+                if (!res.ok) return null;
+                const data = await res.json();
+                if (Array.isArray(data) && data[0]) {
+                    return normalizeArticleRow(data[0]);
+                }
+                return null;
+            } catch (_) {
+                return null;
+            }
+        }
+
         async function deleteArticleFromSupabase(articleId) {
             if (!/^\d+$/.test(String(articleId))) return true;
             try {
@@ -2408,90 +2507,69 @@ function openWriteModal(editArticle = null) {
         // =====================================================================
         // 11. 신문 열람 & '⋮' 메뉴 (작성자 본인만 수정/삭제) & PDF.js 한 장씩 보기
         // =====================================================================
-function isCurrentUserArticleAuthor(article) {
-    if (!article || !currentUser || !currentUser.studentId) return false;
-    const curId = String(currentUser.studentId).trim();
-    const curName = String(currentUser.name || '').trim();
-    const curNick = String(currentUser.nickname || '').trim();
+        function isCurrentUserArticleAuthor(article) {
+            if (!article || !currentUser || !currentUser.studentId) return false;
+            const curId = String(currentUser.studentId).trim();
+            const curName = String(currentUser.name || '').trim();
+            const curNick = String(currentUser.nickname || '').trim();
 
-    if (article.authorId && String(article.authorId).trim() === curId) {
-        return true;
-    }
-    const extracted = extractStudentIdFromText(article.author);
-    if (extracted && extracted === curId) {
-        return true;
-    }
-    const authorStr = String(article.author || '').trim();
-    if (!authorStr) return false;
-    if (curName && curName.length >= 2 && authorStr.includes(curName)) return true;
-    if (curNick && curNick.length >= 2 && authorStr.includes(curNick)) return true;
-    return false;
-}
+            if (article.authorId && String(article.authorId).trim() === curId) {
+                return true;
+            }
+            const authorStr = String(article.author || '').trim();
+            if (!authorStr) return false;
+            if (curId && authorStr.includes(curId)) return true;
+            if (curName && curName.length >= 2 && authorStr.includes(curName)) return true;
+            if (curNick && curNick.length >= 2 && authorStr.includes(curNick)) return true;
+            return false;
+        }
+
+        function toggleArticleMoreMenu(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('article-more-menu');
+            const btn = document.getElementById('article-more-btn');
+            if (!menu) return;
+            const willOpen = menu.classList.contains('hidden');
+            menu.classList.toggle('hidden', !willOpen);
+            if (btn) btn.setAttribute('aria-expanded', String(willOpen));
+        }
+
+        function closeArticleMoreMenu() {
+            const menu = document.getElementById('article-more-menu');
+            const btn = document.getElementById('article-more-btn');
+            if (menu) menu.classList.add('hidden');
+            if (btn) btn.setAttribute('aria-expanded', 'false');
+        }
 
 function handleEditCurrentArticle() {
-    closeArticleMoreMenu();
     if (!activeArticleId) return;
     const target = articles.find((a) => String(a.id) === String(activeArticleId));
     if (!target) return;
-
-    if (!isCurrentUserArticleAuthor(target)) {
-        showToast('작성자 본인만 수정할 수 있습니다.', 'error');
-        return;
-    }
 
     closeModal('detail-modal');
     openWriteModal(target);
 }
 
-async function deleteArticleFromSupabase(article) {
-    const articleId = typeof article === 'object' ? article.id : article;
-    try {
-        if (/^\d+$/.test(String(articleId))) {
-            const res = await fetch(`${SUPABASE_REST_URL}newspapers?id=eq.${encodeURIComponent(articleId)}`, {
-                method: 'DELETE',
-                headers: supabaseHeaders(),
-            });
-            return res.ok;
+        async function handleDeleteCurrentArticle() {
+            closeArticleMoreMenu();
+            if (!activeArticleId) return;
+            const article = articles.find((a) => String(a.id) === String(activeArticleId));
+            if (!article) return;
+
+            if (!isCurrentUserArticleAuthor(article)) {
+                showToast('작성자 본인만 수정하거나 삭제할 수 있습니다.', 'error');
+                return;
+            }
+
+            const targetId = article.id;
+            articles = articles.filter((a) => String(a.id) !== String(targetId));
+            saveArticlesLocal();
+            await deleteArticleFromSupabase(targetId);
+            closeModal('detail-modal');
+            updateNextIssueSuggestion();
+            renderRack();
+            showToast('게시물이 삭제되었습니다.');
         }
-        // 숫자가 아닌 로컬 ID인 경우에도 제목+작성자로 DB 매칭 행 삭제 시도
-        if (typeof article === 'object' && article.title) {
-            const url = `${SUPABASE_REST_URL}newspapers?title=eq.${encodeURIComponent(article.title)}&author=eq.${encodeURIComponent(article.author || '')}`;
-            const res = await fetch(url, {
-                method: 'DELETE',
-                headers: supabaseHeaders(),
-            });
-            return res.ok;
-        }
-        return true;
-    } catch (_) {
-        return false;
-    }
-}
-
-async function handleDeleteCurrentArticle() {
-    closeArticleMoreMenu();
-    if (!activeArticleId) return;
-    const article = articles.find((a) => String(a.id) === String(activeArticleId));
-    if (!article) return;
-
-    if (!isCurrentUserArticleAuthor(article)) {
-        showToast('작성자 본인만 수정하거나 삭제할 수 있습니다.', 'error');
-        return;
-    }
-
-    const deletedRemote = await deleteArticleFromSupabase(article);
-    articles = articles.filter((a) => String(a.id) !== String(article.id));
-    saveArticlesLocal();
-    closeModal('detail-modal');
-    updateNextIssueSuggestion();
-    renderRack();
-
-    if (deletedRemote) {
-        showToast('게시물이 삭제되었습니다.');
-    } else {
-        showToast('화면에서는 삭제되었지만 DB 삭제 권한/연결을 확인해 주세요.', 'error');
-    }
-}
 
         async function openArticleDetail(articleId) {
             closeArticleMoreMenu();
