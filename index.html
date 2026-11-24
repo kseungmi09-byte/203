@@ -2244,7 +2244,7 @@ function requireLogin(actionText = '이 기능') {
         // =====================================================================
 function openWriteModal(editArticle = null) {
     if (!requireLogin(editArticle ? '신문 수정' : '신문 게시')) return;
-}
+
     // 상세 창이 열려 있다면 먼저 닫아서 뒤에 깔리지 않게 함
     closeModal('detail-modal');
 
