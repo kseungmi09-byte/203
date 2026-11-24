@@ -2545,18 +2545,15 @@ function requireLogin(actionText = '이 기능') {
             if (btn) btn.setAttribute('aria-expanded', 'false');
         }
 
-        function handleEditCurrentArticle() {
-            closeArticleMoreMenu();
-            if (!activeArticleId) return;
-            const article = articles.find((a) => String(a.id) === String(activeArticleId));
-            if (!article) return;
+function handleEditCurrentArticle() {
+    if (!activeArticleId) return;
+    const target = articles.find((a) => String(a.id) === String(activeArticleId));
+    if (!target) return;
 
-            if (!isCurrentUserArticleAuthor(article)) {
-                showToast('작성자 본인만 수정하거나 삭제할 수 있습니다.', 'error');
-                return;
-            }
-            openWriteModal(article);
-        }
+    // 원래 보던 신문 상세 창을 먼저 닫고 수정 창을 염
+    closeModal('detail-modal');
+    openWriteModal(target);
+}
 
         async function handleDeleteCurrentArticle() {
             closeArticleMoreMenu();
