@@ -1443,16 +1443,13 @@
 
         async function upsertArticleToSupabase(article) {
             try {
-                const payload = {
+const payload = {
                     issue: article.issue,
                     category: article.category,
                     title: article.title,
                     author: article.author,
-                    author_id: article.authorId || extractStudentIdFromText(article.author) || null,
                     content: article.content,
-                    image_url: article.imageUrl && !article.imageUrl.startsWith('blob:') ? article.imageUrl : null,
                     pdf_url: article.pdfUrl && !article.pdfUrl.startsWith('blob:') ? article.pdfUrl : null,
-                    pdf_name: article.pdfName || null,
                     illustration: article.illustration || 'newspaper',
                     views: Number(article.views) || 0,
                     likes: Number(article.likes) || 0,
