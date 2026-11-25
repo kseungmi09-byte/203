@@ -1475,18 +1475,52 @@ const payload = {
             }
         }
 
-        async function deleteArticleFromSupabase(articleId) {
-            if (!/^\d+$/.test(String(articleId))) return true;
-            try {
-                const res = await fetch(`${SUPABASE_REST_URL}newspapers?id=eq.${encodeURIComponent(articleId)}`, {
-                    method: 'DELETE',
-                    headers: supabaseHeaders(),
-                });
-                return res.ok;
-            } catch (_) {
-                return false;
+async function deleteArticleFromSupabase(article) {
+async function deleteArticleFromSupabase(articleOrId) {
+    const article = typeof articleOrId === 'object' && articleOrId !== null
+        ? articleOrId
+        : (typeof articles !== 'undefined'
+            ? articles.find((a) => String(a.id) === String(articleOrId))
+            : null);
+
+    const idVal = article ? article.id : articleOrId;
+
+    // 1순위: 숫자 ID인 경우 REST DELETE 호출
+    if (/^\d+$/.test(String(idVal || ''))) {
+        try {
+            const res = await fetch(`${SUPABASE_REST_URL}newspapers?id=eq.${encodeURIComponent(idVal)}`, {
+                method: 'DELETE',
+                headers: supabaseHeaders(),
+            });
+            if (res.ok) return true;
+        } catch (_) {}
+    }
+
+    // 2순위: 제목 + 작성자로 삭제 (예전 글/ID 불일치 대비)
+    if (article && article.title) {
+        try {
+            let url = `${SUPABASE_REST_URL}newspapers?title=eq.${encodeURIComponent(article.title)}`;
+            if (article.author) {
+                url += `&author=eq.${encodeURIComponent(article.author)}`;
             }
-        }
+            const res = await fetch(url, {
+                method: 'DELETE',
+                headers: supabaseHeaders(),
+            });
+            if (res.ok) return true;
+        } catch (_) {}
+    }
+
+    return false;
+}    // 2순위: 예전 글이라 id 매칭이 안 되면 제목 + 작성자로 삭제
+    const { error: fallbackError } = await supabaseClient
+        .from('newspapers')
+        .delete()
+        .eq('title', article.title)
+        .eq('author', article.author);
+
+    return !fallbackError;
+}
 
         async function uploadFileToSupabaseStorage(file, kind) {
             try {
