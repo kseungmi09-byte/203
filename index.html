@@ -3280,6 +3280,21 @@ if (visibility === 'public') {
                     }
                 }, 140);
             });
+
+            // 15초마다 다른 기기 변경사항 자동 동기화
+setInterval(() => {
+    if (document.visibilityState === 'visible') {
+        syncFromSupabase();
+    }
+}, 15000);
+
+// 다른 탭이나 앱 갔다가 화면으로 돌아올 때 즉시 동기화
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        syncFromSupabase();
+    }
+});
+            
         }
 
         function clearSearch() {
