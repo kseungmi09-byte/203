@@ -1364,14 +1364,11 @@
                     okAny = true;
                     const rows = await res.json();
                     if (Array.isArray(rows)) {
-                        const remoteArticles = rows.map(normalizeArticleRow);
-                        const remoteIds = new Set(remoteArticles.map((a) => a.id));
-                        const localOnly = articles.filter((a) => !remoteIds.has(a.id));
-                        articles = [...localOnly, ...remoteArticles];
-                        saveArticlesLocal();
-                        updateNextIssueSuggestion();
-                        renderRack();
-                    }
+    articles = rows.map(normalizeArticleRow);
+    saveArticlesLocal();
+    updateNextIssueSuggestion();
+    renderRack();
+}
                 }
             } catch (_) {}
 
@@ -2595,14 +2592,15 @@ function handleEditCurrentArticle() {
                 return;
             }
 
-            const targetId = article.id;
-            articles = articles.filter((a) => String(a.id) !== String(targetId));
-            saveArticlesLocal();
-            await deleteArticleFromSupabase(targetId);
-            closeModal('detail-modal');
-            updateNextIssueSuggestion();
-            renderRack();
-            showToast('게시물이 삭제되었습니다.');
+const targetId = article.id;
+articles = articles.filter((a) => String(a.id) !== String(targetId));
+saveArticlesLocal();
+await deleteArticleFromSupabase(targetId);
+await syncFromSupabase();
+closeModal('detail-modal');
+updateNextIssueSuggestion();
+renderRack();
+showToast('게시물이 삭제되었습니다.');
         }
 
         async function openArticleDetail(articleId) {
