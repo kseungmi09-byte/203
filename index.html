@@ -1508,16 +1508,6 @@ async function deleteArticleFromSupabase(articleOrId) {
     }
 
     return false;
-} 
-        
-        // 2순위: 예전 글이라 id 매칭이 안 되면 제목 + 작성자로 삭제
-    const { error: fallbackError } = await supabaseClient
-        .from('newspapers')
-        .delete()
-        .eq('title', article.title)
-        .eq('author', article.author);
-
-    return !fallbackError;
 }
 
         async function uploadFileToSupabaseStorage(file, kind) {
