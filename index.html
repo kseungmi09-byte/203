@@ -1472,7 +1472,6 @@ const payload = {
             }
         }
 
-async function deleteArticleFromSupabase(article) {
 async function deleteArticleFromSupabase(articleOrId) {
     const article = typeof articleOrId === 'object' && articleOrId !== null
         ? articleOrId
@@ -1493,7 +1492,7 @@ async function deleteArticleFromSupabase(articleOrId) {
         } catch (_) {}
     }
 
-    // 2순위: 제목 + 작성자로 삭제 (예전 글/ID 불일치 대비)
+    // 2순위: 제목 + 작성자로 삭제
     if (article && article.title) {
         try {
             let url = `${SUPABASE_REST_URL}newspapers?title=eq.${encodeURIComponent(article.title)}`;
@@ -1509,7 +1508,9 @@ async function deleteArticleFromSupabase(articleOrId) {
     }
 
     return false;
-}    // 2순위: 예전 글이라 id 매칭이 안 되면 제목 + 작성자로 삭제
+} 
+        
+        // 2순위: 예전 글이라 id 매칭이 안 되면 제목 + 작성자로 삭제
     const { error: fallbackError } = await supabaseClient
         .from('newspapers')
         .delete()
